@@ -74,7 +74,7 @@ def main() -> None:
 @click.option(
     "--backend",
     type=click.Choice(["audd", "acrcloud"]),
-    default="audd",
+    default="acrcloud",
     show_default=True,
     help="Audio recognition backend.",
 )
@@ -86,7 +86,7 @@ def main() -> None:
 @click.option(
     "--acr-host",
     envvar="ACR_HOST",
-    default="identify-eu-west-1.acrcloud.com",
+    default="identify-us-west-2.acrcloud.com",
     show_default=True,
     help="ACRCloud region host.",
 )
