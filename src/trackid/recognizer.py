@@ -85,7 +85,9 @@ class AuddRecognizer:
 
         payload = resp.json()
         if payload.get("status") != "success":
-            return None
+            error = payload.get("error", {})
+            msg = error.get("error_message") or f"code {error.get('error_code', '?')}"
+            raise RecognitionError(f"AudD API error: {msg}")
 
         result = payload.get("result")
         if not result:
@@ -162,8 +164,11 @@ class ACRCloudRecognizer:
 
         payload = resp.json()
         status = payload.get("status", {})
-        if status.get("code") != 0:
-            return None
+        code = status.get("code")
+        if code != 0:
+            if code == 1001:  # "No result" is a normal no-match, not an error
+                return None
+            raise RecognitionError(f"ACRCloud API error: {status.get('msg', code)}")
 
         metadata = payload.get("metadata", {})
         music_list = metadata.get("music", [])

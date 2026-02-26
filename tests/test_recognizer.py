@@ -51,14 +51,15 @@ class TestAuddRecognizer:
         assert rec.recognise(SAMPLE_BYTES) is None
 
     @resp_mock.activate
-    def test_api_error_status_returns_none(self):
+    def test_api_error_status_raises(self):
         resp_mock.add(
             resp_mock.POST,
             "https://api.audd.io/",
-            json={"status": "error", "error": {"error_code": 900, "error_message": ""}},
+            json={"status": "error", "error": {"error_code": 900, "error_message": "Monthly limit exceeded"}},
         )
         rec = AuddRecognizer()
-        assert rec.recognise(SAMPLE_BYTES) is None
+        with pytest.raises(RecognitionError, match="Monthly limit exceeded"):
+            rec.recognise(SAMPLE_BYTES)
 
     @resp_mock.activate
     def test_http_error_raises(self):
@@ -121,6 +122,17 @@ class TestACRCloudRecognizer:
         )
         rec = ACRCloudRecognizer("key", "secret")
         assert rec.recognise(SAMPLE_BYTES) is None
+
+    @resp_mock.activate
+    def test_api_error_raises(self):
+        resp_mock.add(
+            resp_mock.POST,
+            "https://identify-eu-west-1.acrcloud.com/v1/identify",
+            json={"status": {"code": 3000, "msg": "Recognize failed"}, "metadata": {}},
+        )
+        rec = ACRCloudRecognizer("key", "secret")
+        with pytest.raises(RecognitionError, match="Recognize failed"):
+            rec.recognise(SAMPLE_BYTES)
 
 
 class TestMakeRecognizer:
