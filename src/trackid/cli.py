@@ -17,6 +17,12 @@ trackid identify /path/to/set.wav --step 20
 
 # Save results to a text file
 trackid identify https://... --output tracklist.txt
+
+# Launch the web GUI (opens browser automatically)
+trackid serve
+
+# Custom host/port
+trackid serve --host 0.0.0.0 --port 8080
 """
 
 from __future__ import annotations
@@ -269,3 +275,41 @@ def _print_rich_table(tracklist: list[TrackEntry]) -> None:
         )
 
     console.print(table)
+
+
+# ---------------------------------------------------------------------------
+# serve command
+# ---------------------------------------------------------------------------
+
+@main.command()
+@click.option("--host", default="127.0.0.1", show_default=True, help="Bind host.")
+@click.option("--port", default=7842, show_default=True, type=int, help="Bind port.")
+@click.option(
+    "--no-browser", is_flag=True, default=False, help="Don't open a browser tab."
+)
+def serve(host: str, port: int, no_browser: bool) -> None:
+    """Launch the web GUI and (optionally) open it in a browser.
+
+    \b
+    Requires: pip install "trackid[gui]"
+    """
+    try:
+        import uvicorn
+    except ImportError:
+        console.print(
+            "[bold red]✗[/] uvicorn is not installed.\n"
+            "Run: [cyan]pip install 'trackid[gui]'[/]"
+        )
+        raise SystemExit(1)
+
+    url = f"http://{host}:{port}"
+    console.print(f"[bold green]✓[/] trackid GUI running at [cyan]{url}[/]")
+    console.print("  Press [bold]Ctrl+C[/] to stop.\n")
+
+    if not no_browser:
+        import threading, webbrowser
+        # Open the browser after a short delay so uvicorn is ready
+        threading.Timer(1.2, webbrowser.open, args=(url,)).start()
+
+    from .web import app as fastapi_app
+    uvicorn.run(fastapi_app, host=host, port=port, log_level="warning")

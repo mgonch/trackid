@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>trackid — DJ Set Track Identifier</title>
+<style>
+  /* ── Reset & base ─────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0d0d0f;
+    --surface:  #16161a;
+    --border:   #2a2a30;
+    --accent:   #7c3aed;
+    --accent2:  #a855f7;
+    --green:    #22c55e;
+    --yellow:   #eab308;
+    --red:      #ef4444;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --radius:   10px;
+    --font:     'Inter', system-ui, sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Layout ───────────────────────────────────────────────────── */
+  .shell {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+  }
+
+  /* ── Header ───────────────────────────────────────────────────── */
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 36px;
+  }
+  header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  header h1 span { color: var(--accent2); }
+  header p { color: var(--muted); font-size: 13px; }
+
+  /* ── Card ─────────────────────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  /* ── Form elements ────────────────────────────────────────────── */
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+
+  input[type="text"],
+  input[type="number"],
+  input[type="password"],
+  select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+
+  .row { display: grid; gap: 12px; }
+  .row-2 { grid-template-columns: 1fr 1fr; }
+  .row-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+
+  /* ── Source tabs ──────────────────────────────────────────────── */
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+  .tab {
+    padding: 6px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  /* ── Drop zone ────────────────────────────────────────────────── */
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+  .dropzone.drag-over { border-color: var(--accent); background: #7c3aed18; }
+  .dropzone input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .dropzone-icon { font-size: 28px; margin-bottom: 8px; }
+  .dropzone p { color: var(--muted); font-size: 13px; }
+  .dropzone .filename { color: var(--green); font-weight: 600; margin-top: 6px; }
+
+  /* ── Backend section ──────────────────────────────────────────── */
+  .backend-creds { display: none; }
+  .backend-creds.visible { display: grid; }
+
+  /* ── Submit button ────────────────────────────────────────────── */
+  .btn-identify {
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+    margin-top: 8px;
+  }
+  .btn-identify:hover { background: var(--accent2); }
+  .btn-identify:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* ── Progress ─────────────────────────────────────────────────── */
+  #progress-section { display: none; }
+
+  .progress-bar-wrap {
+    background: var(--border);
+    border-radius: 99px;
+    height: 6px;
+    overflow: hidden;
+    margin: 12px 0 8px;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 99px;
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+  .progress-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ── Live feed ────────────────────────────────────────────────── */
+  .live-feed {
+    margin-top: 14px;
+    max-height: 220px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .feed-item {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    background: var(--bg);
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+  .feed-item.match { border-left: 2px solid var(--green); }
+  .feed-item.no-match { border-left: 2px solid var(--border); opacity: 0.55; }
+  .feed-ts { font-size: 11px; color: var(--muted); white-space: nowrap; min-width: 44px; }
+  .feed-track { font-size: 13px; }
+  .feed-track strong { color: var(--text); }
+  .feed-track span { color: var(--muted); }
+  .feed-label {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--muted);
+    white-space: nowrap;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── Results table ────────────────────────────────────────────── */
+  #results-section { display: none; }
+
+  .results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .results-header h2 { font-size: 16px; font-weight: 600; }
+  .results-header .badge {
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 99px;
+    font-weight: 600;
+  }
+
+  .tracklist {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .tracklist th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tracklist td {
+    padding: 12px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    vertical-align: middle;
+  }
+  .tracklist tr:last-child td { border-bottom: none; }
+  .tracklist tr:hover td { background: #ffffff06; }
+
+  .track-num { color: var(--muted); font-size: 12px; font-weight: 600; min-width: 28px; }
+  .track-ts {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    color: var(--accent2);
+    white-space: nowrap;
+  }
+  .track-artist { font-weight: 600; color: var(--text); }
+  .track-title { color: var(--muted); }
+  .track-label {
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--border);
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  /* ── Export buttons ───────────────────────────────────────────── */
+  .export-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    justify-content: flex-end;
+  }
+  .btn-export {
+    padding: 7px 16px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text);
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-export:hover { background: var(--border); }
+
+  /* ── Error banner ─────────────────────────────────────────────── */
+  .error-banner {
+    display: none;
+    background: #ef444420;
+    border: 1px solid var(--red);
+    color: var(--red);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .error-banner.visible { display: block; }
+
+  /* ── Responsive ───────────────────────────────────────────────── */
+  @media (max-width: 600px) {
+    .row-2, .row-3 { grid-template-columns: 1fr; }
+    .tracklist th:nth-child(5),
+    .tracklist td:nth-child(5) { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Header -->
+  <header>
+    <h1>track<span>id</span></h1>
+    <p>Identify every track in a DJ set</p>
+  </header>
+
+  <!-- Error banner -->
+  <div class="error-banner" id="error-banner"></div>
+
+  <!-- ── Input card ── -->
+  <div class="card">
+    <div class="card-title">Source</div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="url">URL</button>
+      <button class="tab" data-tab="file">Upload file</button>
+    </div>
+
+    <!-- URL input -->
+    <div id="tab-url">
+      <div class="field">
+        <label>SoundCloud / YouTube / Mixcloud URL</label>
+        <input type="text" id="url-input"
+          placeholder="https://soundcloud.com/dj/mix-title" />
+      </div>
+    </div>
+
+    <!-- File upload -->
+    <div id="tab-file" style="display:none">
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="file-input" accept="audio/*,.wav,.mp3,.flac,.ogg,.m4a" />
+        <div class="dropzone-icon">🎵</div>
+        <p>Drop an audio file here, or click to browse</p>
+        <p class="filename" id="file-name" style="display:none"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Recognition settings ── -->
+  <div class="card">
+    <div class="card-title">Recognition</div>
+
+    <div class="row row-2" style="margin-bottom:14px">
+      <div class="field">
+        <label>Backend</label>
+        <select id="backend">
+          <option value="audd">AudD (free tier, no key needed)</option>
+          <option value="acrcloud">ACRCloud (better for techno / underground)</option>
+        </select>
+      </div>
+      <div class="field" id="audd-token-field">
+        <label>AudD API token <span style="color:var(--muted)">(optional)</span></label>
+        <input type="password" id="audd-token" placeholder="Leave blank for free sandbox" />
+      </div>
+    </div>
+
+    <div class="backend-creds row row-2" id="acr-creds">
+      <div class="field">
+        <label>ACRCloud access key</label>
+        <input type="password" id="acr-key" placeholder="Access key" />
+      </div>
+      <div class="field">
+        <label>ACRCloud access secret</label>
+        <input type="password" id="acr-secret" placeholder="Access secret" />
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Sampling settings ── -->
+  <div class="card">
+    <div class="card-title">Sampling</div>
+    <div class="row row-3">
+      <div class="field">
+        <label>Sample every (seconds)</label>
+        <input type="number" id="step" value="30" min="5" max="120" />
+      </div>
+      <div class="field">
+        <label>Chunk length (seconds)</label>
+        <input type="number" id="chunk" value="12" min="8" max="30" />
+      </div>
+      <div class="field">
+        <label>Min hits to include</label>
+        <input type="number" id="min-hits" value="1" min="1" max="10" />
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-identify" id="btn-identify">Identify Tracks</button>
+
+  <!-- ── Progress section ── -->
+  <div id="progress-section" style="margin-top:24px">
+    <div class="card">
+      <div class="card-title">Progress</div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="progress-fill"></div>
+      </div>
+      <div class="progress-meta">
+        <span id="progress-text">Starting…</span>
+        <span id="progress-pct">0%</span>
+      </div>
+      <div class="live-feed" id="live-feed"></div>
+    </div>
+  </div>
+
+  <!-- ── Results section ── -->
+  <div id="results-section" style="margin-top:8px">
+    <div class="card">
+      <div class="results-header">
+        <h2>Tracklist</h2>
+        <span class="badge" id="track-count">0 tracks</span>
+      </div>
+      <table class="tracklist">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Time</th>
+            <th>Artist</th>
+            <th>Title</th>
+            <th>Label</th>
+          </tr>
+        </thead>
+        <tbody id="tracklist-body"></tbody>
+      </table>
+      <div class="export-row">
+        <button class="btn-export" id="btn-copy">Copy text</button>
+        <button class="btn-export" id="btn-csv">Download CSV</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- .shell -->
+
+<script>
+/* ── Tab switching ─────────────────────────────────────────────────── */
+const tabs = document.querySelectorAll('.tab');
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-url').style.display = tab.dataset.tab === 'url' ? '' : 'none';
+    document.getElementById('tab-file').style.display = tab.dataset.tab === 'file' ? '' : 'none';
+  });
+});
+
+/* ── Backend switcher ──────────────────────────────────────────────── */
+document.getElementById('backend').addEventListener('change', function () {
+  const isAcr = this.value === 'acrcloud';
+  document.getElementById('acr-creds').classList.toggle('visible', isAcr);
+  document.getElementById('audd-token-field').style.display = isAcr ? 'none' : '';
+});
+
+/* ── File drop zone ────────────────────────────────────────────────── */
+let uploadedPath = null;
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('file-input');
+const fileName  = document.getElementById('file-name');
+
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+async function handleFile(file) {
+  fileName.textContent = `Uploading ${file.name}…`;
+  fileName.style.display = '';
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    uploadedPath = data.path;
+    fileName.textContent = `✓ ${file.name}`;
+  } catch (err) {
+    fileName.textContent = `✗ Upload failed`;
+    fileName.style.color = 'var(--red)';
+  }
+}
+
+/* ── Main identify flow ────────────────────────────────────────────── */
+const btnIdentify = document.getElementById('btn-identify');
+const progressSection = document.getElementById('progress-section');
+const resultsSection  = document.getElementById('results-section');
+const progressFill    = document.getElementById('progress-fill');
+const progressText    = document.getElementById('progress-text');
+const progressPct     = document.getElementById('progress-pct');
+const liveFeed        = document.getElementById('live-feed');
+const errorBanner     = document.getElementById('error-banner');
+
+let currentTracklist = [];
+
+btnIdentify.addEventListener('click', async () => {
+  hideError();
+  const activeTab = document.querySelector('.tab.active').dataset.tab;
+  let source = '';
+
+  if (activeTab === 'url') {
+    source = document.getElementById('url-input').value.trim();
+    if (!source) { showError('Please enter a URL.'); return; }
+  } else {
+    if (!uploadedPath) { showError('Please upload an audio file first.'); return; }
+    source = uploadedPath;
+  }
+
+  const backend = document.getElementById('backend').value;
+  const body = {
+    source,
+    backend,
+    audd_token: document.getElementById('audd-token').value.trim() || null,
+    acr_key:    document.getElementById('acr-key').value.trim()    || null,
+    acr_secret: document.getElementById('acr-secret').value.trim() || null,
+    step:       parseInt(document.getElementById('step').value),
+    chunk:      parseInt(document.getElementById('chunk').value),
+    min_hits:   parseInt(document.getElementById('min-hits').value),
+    delay:      0.5,
+  };
+
+  // reset UI
+  liveFeed.innerHTML = '';
+  progressFill.style.width = '0%';
+  progressText.textContent = 'Starting…';
+  progressPct.textContent = '0%';
+  progressSection.style.display = '';
+  resultsSection.style.display  = 'none';
+  btnIdentify.disabled = true;
+  currentTracklist = [];
+
+  try {
+    const resp = await fetch('/api/identify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) { showError('Failed to start job.'); btnIdentify.disabled = false; return; }
+    const { job_id } = await resp.json();
+    streamJob(job_id);
+  } catch (err) {
+    showError(`Network error: ${err}`);
+    btnIdentify.disabled = false;
+  }
+});
+
+function streamJob(jobId) {
+  const es = new EventSource(`/api/stream/${jobId}`);
+  let total = 0, done = 0;
+
+  es.onmessage = (e) => {
+    const ev = JSON.parse(e.data);
+
+    if (ev.type === 'status') {
+      progressText.textContent = ev.message;
+    }
+
+    if (ev.type === 'total') {
+      total = ev.total;
+    }
+
+    if (ev.type === 'sample') {
+      done++;
+      if (total > 0) {
+        const pct = Math.round((done / total) * 100);
+        progressFill.style.width = pct + '%';
+        progressPct.textContent = pct + '%';
+        progressText.textContent = `Sampling position ${ev.timestamp}…`;
+      }
+      addFeedItem(ev);
+    }
+
+    if (ev.type === 'warn') {
+      progressText.textContent = `⚠ ${ev.message}`;
+    }
+
+    if (ev.type === 'done') {
+      progressFill.style.width = '100%';
+      progressPct.textContent = '100%';
+      progressText.textContent = `Done — ${ev.tracklist.length} track(s) identified`;
+      currentTracklist = ev.tracklist;
+      renderTracklist(ev.tracklist);
+      btnIdentify.disabled = false;
+      es.close();
+    }
+
+    if (ev.type === 'error') {
+      showError(ev.message);
+      btnIdentify.disabled = false;
+      es.close();
+    }
+  };
+
+  es.onerror = () => {
+    es.close();
+    btnIdentify.disabled = false;
+  };
+}
+
+function addFeedItem(ev) {
+  const item = document.createElement('div');
+  item.className = ev.match ? 'feed-item match' : 'feed-item no-match';
+
+  const ts = document.createElement('span');
+  ts.className = 'feed-ts';
+  ts.textContent = ev.timestamp;
+
+  const track = document.createElement('span');
+  track.className = 'feed-track';
+
+  if (ev.match) {
+    track.innerHTML = `<strong>${esc(ev.match.artist)}</strong> <span>— ${esc(ev.match.title)}</span>`;
+  } else {
+    track.innerHTML = `<span style="color:var(--muted)">no match</span>`;
+  }
+
+  item.appendChild(ts);
+  item.appendChild(track);
+
+  if (ev.match?.label) {
+    const lbl = document.createElement('span');
+    lbl.className = 'feed-label';
+    lbl.textContent = ev.match.label;
+    item.appendChild(lbl);
+  }
+
+  liveFeed.appendChild(item);
+  liveFeed.scrollTop = liveFeed.scrollHeight;
+}
+
+function renderTracklist(tracks) {
+  const tbody = document.getElementById('tracklist-body');
+  tbody.innerHTML = '';
+
+  if (tracks.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">No tracks identified — try a shorter step or different backend</td></tr>';
+  } else {
+    tracks.forEach(t => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="track-num">${t.number}</td>
+        <td class="track-ts">${esc(t.timestamp)}</td>
+        <td class="track-artist">${esc(t.artist)}</td>
+        <td class="track-title">${esc(t.title)}</td>
+        <td>${t.label ? `<span class="track-label">${esc(t.label)}</span>` : ''}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  document.getElementById('track-count').textContent =
+    `${tracks.length} track${tracks.length !== 1 ? 's' : ''}`;
+  resultsSection.style.display = '';
+}
+
+/* ── Export ────────────────────────────────────────────────────────── */
+document.getElementById('btn-copy').addEventListener('click', () => {
+  if (!currentTracklist.length) return;
+  const lines = ['TRACKLIST', '─'.repeat(60)];
+  currentTracklist.forEach(t => {
+    const lbl = t.label ? ` [${t.label}]` : '';
+    lines.push(`${String(t.number).padStart(2)}. [${t.timestamp}]  ${t.artist} – ${t.title}${lbl}`);
+  });
+  lines.push('─'.repeat(60));
+  navigator.clipboard.writeText(lines.join('\n'));
+});
+
+document.getElementById('btn-csv').addEventListener('click', () => {
+  if (!currentTracklist.length) return;
+  const rows = [['#', 'Time', 'Artist', 'Title', 'Label']];
+  currentTracklist.forEach(t => rows.push([t.number, t.timestamp, t.artist, t.title, t.label]));
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tracklist.csv';
+  a.click();
+});
+
+/* ── Helpers ───────────────────────────────────────────────────────── */
+function showError(msg) {
+  errorBanner.textContent = msg;
+  errorBanner.classList.add('visible');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function hideError() {
+  errorBanner.classList.remove('visible');
+}
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>
